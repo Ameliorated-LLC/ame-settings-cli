@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.DirectoryServices.AccountManagement;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -14,13 +15,15 @@ using System.Windows.Forms;
 using Ameliorated.ConsoleUtils;
 using Microsoft.Win32;
 using amecs.Actions;
+using Microsoft.Win32.TaskScheduler;
 using Menu = Ameliorated.ConsoleUtils.Menu;
+using Task = System.Threading.Tasks.Task;
 
 namespace amecs
 {
     internal class Program
     {
-        public const string Ver = "2.2";
+        public const string Ver = "2.3";
         public static ConsoleTUI.Frame Frame;
 
         [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -96,6 +99,16 @@ namespace amecs
             CloseServiceHandle(serviceHandle);
             CloseServiceHandle(scManagerHandle);
         }
+        
+        private static void ConfigureCulture()
+        {
+            CultureInfo culture = (CultureInfo)CultureInfo.CurrentCulture.Clone();
+            culture.NumberFormat.NumberDecimalSeparator = "."; // Force use . instead of ,
+            culture.DateTimeFormat.Calendar = new GregorianCalendar();
+
+            Thread.CurrentThread.CurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+        }
 
         private static string PendingUpdate = null;
         private static readonly SemaphoreSlim MainMenuLock = new SemaphoreSlim(0);
@@ -104,6 +117,8 @@ namespace amecs
         [STAThread]
         public static async Task Main(string[] args)
         {
+            ConfigureCulture();
+            
             ConsoleTUI.Initialize("Configure AME");
 
             if (args.Length > 0 && args[0] == "-Updated")
@@ -129,7 +144,6 @@ namespace amecs
                     catch { }
                 }
             }
-            
             if (!File.Exists(Environment.ExpandEnvironmentVariables(@"%WINDIR%\System32\sfc1.exe")))
             {
                 ConsoleTUI.ShowErrorBox("amecs can only be used with the AME 11/10 Playbooks for AME Wizard.", "amecs");
@@ -195,6 +209,18 @@ namespace amecs
             {
                 ConsoleTUI.ShowErrorBox("Could not acquire System privileges: " + e, "Central AME Script");
                 Environment.Exit(1);
+            }
+            
+            if (args.Length > 1 && args[0] == "-Uninstall")
+            {
+                Frame = new ConsoleTUI.Frame($"| Central AME Script v{Ver} |", false);
+                Frame.Open();
+                
+                if (Directory.Exists(args[1]) || File.Exists(args[1]))
+                    Deameliorate.DeameliorateCore(false, false, args[1]);
+                else
+                    await Deameliorate.ShowMenuNoWarn();
+                return;
             }
             
             _ = Task.Run(async () =>

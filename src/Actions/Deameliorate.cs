@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using amecs.Misc;
 using Ameliorated.ConsoleUtils;
+using JetBrains.Annotations;
 using Microsoft.Win32;
 using Microsoft.Win32.TaskScheduler;
 using Task = System.Threading.Tasks.Task;
@@ -25,7 +26,7 @@ namespace amecs.Actions
 We recommend backing up important data before removing AME
 Continue? (Y/N): "
                 }.Start()!.Value == 1) return Task.FromResult(true);
-            
+
             ConsoleTUI.OpenFrame.Clear();
             
             var mainMenu = new Ameliorated.ConsoleUtils.Menu()
@@ -44,6 +45,25 @@ Continue? (Y/N): "
             var result = (Func<bool>)mainMenu.Load(true);
             return Task.FromResult(result.Invoke());
         }
+        public static Task<bool> ShowMenuNoWarn()
+        {
+            rebooted = true;
+            ConsoleTUI.OpenFrame.Clear();
+            
+            var mainMenu = new Ameliorated.ConsoleUtils.Menu()
+            {
+                Choices =
+                {
+                    new Menu.MenuItem("Uninstall AME using a Windows USB", new Func<bool>(DeameliorateUSB)),
+                    new Menu.MenuItem("Uninstall AME using a Windows ISO", new Func<bool>(DeameliorateISO)),
+                },
+                SelectionForeground = ConsoleColor.Green
+            };
+            mainMenu.Write("Windows install media is required to restore files.");
+            var result = (Func<bool>)mainMenu.Load(true);
+            return Task.FromResult(result.Invoke());
+        }
+        private static bool rebooted = false;
         
         
         [DllImport("kernel32.dll", SetLastError=true)]
@@ -59,16 +79,81 @@ Continue? (Y/N): "
         public static bool DeameliorateUSB() => DeameliorateCore(true, false);
         public static bool DeameliorateISO() => DeameliorateCore(false, true);
         
-        public static bool DeameliorateCore(bool usb, bool iso)
+        public static bool DeameliorateCore(bool usb, bool iso, [CanBeNull] string path = null)
         {
-            if (usb && !iso)
-                ConsoleTUI.OpenFrame.WriteCenteredLine("Select Windows USB drive");
-            if (iso && !usb)
-                ConsoleTUI.OpenFrame.WriteCenteredLine("Select Windows ISO file");
-            
-            (_mountedPath, _, _winVer, _, _) = SelectWindowsImage.GetMediaPath(usb: usb, iso: iso);
-            if (_mountedPath == null) return false;
-            
+            string _isoPath = null;
+            if (path != null)
+            {
+                if (File.Exists(path))
+                {
+                    var startInfo = new ProcessStartInfo
+                    {
+                        CreateNoWindow = false,
+                        UseShellExecute = false,
+                        FileName = "PowerShell.exe",
+                        WindowStyle = ProcessWindowStyle.Hidden,
+                        Arguments = $"-NoP -C \"(Mount-DiskImage '{path}' -PassThru | Get-Volume).DriveLetter + ':\'\"",
+                        RedirectStandardOutput = true
+                    };
+
+                    var proc = Process.Start(startInfo);
+                    proc.WaitForExit();
+
+                    _mountedPath = proc.StandardOutput.ReadLine();
+                } else
+                    _mountedPath = path;
+            }
+            else
+            {
+                (_mountedPath, _isoPath, _winVer, _, _) = SelectWindowsImage.GetMediaPath(usb: usb, iso: iso);
+                if (_mountedPath == null) return false;
+            }
+
+
+            if (path == null && !rebooted)
+            {
+                try
+                {
+                    ConsoleTUI.OpenFrame.WriteCentered("Restoring Defender package");
+                    using (new ConsoleUtils.LoadingIndicator(true))
+                    {
+                        RestoreDefender();
+
+                        try
+                        {
+                            new Reg.Value()
+                            {
+                                KeyName = "HKU\\" + Globals.UserSID + @"\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
+                                ValueName = "UninstallAME",
+                                Type = Reg.RegistryValueType.REG_SZ,
+                                Data = $"\"{Assembly.GetExecutingAssembly().Location}\" -Uninstall \"{_isoPath ?? _mountedPath.TrimEnd('\\')}\"",
+                            }.Apply();
+                        }
+                        catch (Exception exception) { }
+                    }
+                    
+                    Console.WriteLine();
+                    if ((int?)ConsoleTUI.OpenFrame.Close("A restart is required to continue de-amelioration", ConsoleColor.Green, Console.BackgroundColor,
+                            new ChoicePrompt()
+                            {
+                                TextForeground = ConsoleColor.Yellow,
+                                Text = "Restart now? (Y/N): "
+                            }) == 0) amecs.RestartWindows(false);
+
+                    Environment.Exit(0);
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    if ((int?)ConsoleTUI.OpenFrame.Close("Failed to restore Microsoft Defender: " + e.Message, ConsoleColor.Yellow, Console.BackgroundColor,
+                            new ChoicePrompt()
+                            {
+                                TextForeground = ConsoleColor.Yellow,
+                                Text = "Continue de-amelioration anyways? (Y/N): "
+                            }) != 0) return false;
+                }
+            }
+
             try
             {
                 string openShellId = null;
@@ -86,8 +171,6 @@ Continue? (Y/N): "
                         // do nothing
                     }
                 }
-
-                Console.WriteLine();
                 
                 if (openShellId != null)
                 {
@@ -292,15 +375,12 @@ Continue? (Y/N): "
             
             try
             {
-                // Create a new task definition and assign properties
                 TaskDefinition td = TaskService.Instance.NewTask();
                 td.Principal.UserId = "SYSTEM";
                 td.Principal.RunLevel = TaskRunLevel.Highest;
 
-                // Create a trigger that will fire the task at this time every other day
                 td.Triggers.Add(new BootTrigger() { });
 
-                // Create an action that will launch Notepad whenever the trigger fires
                 td.Actions.Add(new ExecAction("sfc", "/scannow"));
                 td.Actions.Add(new ExecAction("SCHTASKS", @"/delete /tn ""sfc"" /f"));
 
@@ -325,6 +405,224 @@ Continue? (Y/N): "
             Environment.Exit(0);
             Thread.Sleep(-1);
             return true;
+        }
+        private static string ExtractCab()
+        {
+            var cabArch = Win32.SystemInfoEx.SystemArchitecture == Architecture.Arm || Win32.SystemInfoEx.SystemArchitecture == Architecture.Arm64 ? "arm64" : "amd64";
+            
+            var fileDir = Environment.ExpandEnvironmentVariables("%ProgramData%\\AME");
+            if (!Directory.Exists(fileDir)) Directory.CreateDirectory(fileDir);
+
+            var destination = Path.Combine(fileDir, $"Z-AME-NoDefender-Package31bf3856ad364e35{cabArch}1.0.0.0.cab");
+            
+            if (File.Exists(destination))
+            {
+                return destination;
+            }
+            
+            Assembly assembly = Assembly.GetEntryAssembly();
+            using (UnmanagedMemoryStream stream = (UnmanagedMemoryStream)assembly!.GetManifestResourceStream($"amecs.Properties.Z-AME-NoDefender-Package31bf3856ad364e35{cabArch}1.0.0.0.cab"))
+            {
+                byte[] buffer = new byte[stream!.Length];
+                stream.Read(buffer, 0, buffer.Length);
+                File.WriteAllBytes(destination, buffer);
+            }
+            return destination;
+        }
+
+        private static bool RestoreDefender()
+        {
+            //string cabPath = null;
+
+           // cabPath = ExtractCab();
+
+            //var certPath = Path.GetTempFileName();
+
+            int exitCode;
+
+            /*
+            exitCode = RunPSCommand(
+                $"try {{" +
+                $"$cert = (Get-AuthenticodeSignature '{cabPath}').SignerCertificate; " +
+                $"[System.IO.File]::WriteAllBytes('{certPath}', $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)); " +
+                $"Import-Certificate '{certPath}' -CertStoreLocation 'Cert:\\LocalMachine\\Root' | Out-Null; " +
+                $"Copy-Item -Path \"HKLM:\\Software\\Microsoft\\SystemCertificates\\ROOT\\Certificates\\$($cert.Thumbprint)\" \"HKLM:\\Software\\Microsoft\\SystemCertificates\\ROOT\\Certificates\\8A334AA8052DD244A647306A76B8178FA215F344\" -Force | Out-Null; " +
+                $"EXIT 0; " +
+                $"}} catch {{EXIT 1}}", null, null);
+
+            if (exitCode == 1)
+                throw new Exception("Could not add certificate.");
+*/
+            var cabArch = Win32.SystemInfoEx.SystemArchitecture == Architecture.Arm || Win32.SystemInfoEx.SystemArchitecture == Architecture.Arm64 ? "arm64" : "amd64";
+            string err = null;
+
+            double lastDismProgress = 0;
+            exitCode = RunCommand("DISM.exe", $"/Online /Remove-Package /PackageName:\"Z-AME-NoDefender-Package~31bf3856ad364e35~{cabArch}~~1.0.0.0\" /NoRestart",
+                (sender, args) =>
+                {
+                    if (args.Data != null && args.Data.Contains("%"))
+                    {
+                        int i = args.Data.IndexOf('%') - 1;
+                        while (args.Data[i] == '.' || Char.IsDigit(args.Data[i])) i--;
+                        if (double.TryParse(args.Data.Substring(i + 1, args.Data.IndexOf('%') - i - 1), out double dismProgress))
+                        {
+                            lastDismProgress = dismProgress;
+                        }
+                    }
+                },
+                ((sender, args) =>
+                {
+                    if (err == null && args.Data != null)
+                        err = args.Data;
+                    else if (err != null && args.Data != null)
+                        err = err + Environment.NewLine + args.Data;
+                }));
+
+            // 3010 = Restart required, -2146498555 = Package not found (In our case it may already be removed from a previous run)
+            if (exitCode != 0 && exitCode != 3010 && exitCode != -2146498555)
+            {
+                /*
+                exitCode = RunPSCommand(
+                    $"$cert = (Get-AuthenticodeSignature '{cabPath}').SignerCertificate; " +
+                    $"Get-ChildItem 'Cert:\\LocalMachine\\Root\\$($cert.Thumbprint)' | Remove-Item -Force | Out-Null; " +
+                    $"Remove-Item \"HKLM:\\Software\\Microsoft\\SystemCertificates\\ROOT\\Certificates\\8A334AA8052DD244A647306A76B8178FA215F344\" -Force -Recurse | Out-Null"
+                    , null, null);
+*/
+                throw new Exception("Could not apply package: " + exitCode);
+            }
+
+            if (exitCode == -2146498555)
+                return false;
+
+            return true;
+/*
+            exitCode = RunPSCommand(
+                $"$cert = (Get-AuthenticodeSignature '{cabPath}').SignerCertificate; " +
+                $"Get-ChildItem 'Cert:\\LocalMachine\\Root\\$($cert.Thumbprint)' | Remove-Item -Force | Out-Null; " +
+                $"Remove-Item \"HKLM:\\Software\\Microsoft\\SystemCertificates\\ROOT\\Certificates\\8A334AA8052DD244A647306A76B8178FA215F344\" -Force -Recurse | Out-Null"
+                , null, null);
+*/
+/*
+            try
+            {
+                File.Delete(cabPath);
+            }
+            catch { }
+*/
+        }
+        private static int RunPSCommand(string command, DataReceivedEventHandler outputHandler, DataReceivedEventHandler errorHandler) =>
+            RunCommand("powershell.exe", $"-NoP -C \"{command}\"", outputHandler, errorHandler);
+        private static int RunCommand(string exe, string arguments, [CanBeNull] DataReceivedEventHandler outputHandler, [CanBeNull] DataReceivedEventHandler errorHandler)
+        {
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo()
+                {
+                    FileName = exe,
+                    Arguments = arguments,
+
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = outputHandler != null,
+                    RedirectStandardError = errorHandler != null
+                }
+            };
+
+            if (outputHandler != null)
+                process.OutputDataReceived += outputHandler;
+            if (errorHandler != null)
+                process.ErrorDataReceived += errorHandler;
+
+            process.Start();
+            
+            if (outputHandler != null)
+                process.BeginOutputReadLine();
+            if (errorHandler != null)
+                process.BeginErrorReadLine();
+
+            process.WaitForExit();
+            return process.ExitCode;
+        }
+        
+        
+        private static string GetUsername()
+        {
+            var currentSessionId = (uint)Process.GetCurrentProcess().SessionId;
+
+            try
+            {
+                var sessionId = Win32.WTS.WTSGetActiveConsoleSessionId();
+                if (sessionId != 0xFFFFFFFF)
+                {
+                    bool successState1 = Win32.WTS.WTSQuerySessionInformation(IntPtr.Zero, sessionId, Win32.WTS.WTS_INFO_CLASS.WTSConnectState,
+                        out IntPtr bufferState1, out int returnedState1);
+
+                    if (successState1 && Marshal.ReadInt32(bufferState1) == 0)
+                    {
+                        bool success = Win32.WTS.WTSQuerySessionInformation(IntPtr.Zero, sessionId, Win32.WTS.WTS_INFO_CLASS.WTSUserName,
+                            out IntPtr buffer, out int returned);
+                        if (success)
+                            return Marshal.PtrToStringAnsi(buffer);
+                    }
+                }
+            }
+            catch (Exception e) { }
+            
+
+            IntPtr pSessionInfo = IntPtr.Zero;
+            Int32 count = 0;
+            if (Win32.WTS.WTSEnumerateSessions(IntPtr.Zero, 0, 1, ref pSessionInfo, ref count) == 0)
+            {
+                bool successState = Win32.WTS.WTSQuerySessionInformation(IntPtr.Zero, currentSessionId, Win32.WTS.WTS_INFO_CLASS.WTSConnectState,
+                    out IntPtr bufferState, out int returnedState);
+
+                if (successState && Marshal.ReadInt32(bufferState) == 0)
+                {
+                    bool success = Win32.WTS.WTSQuerySessionInformation(IntPtr.Zero, currentSessionId, Win32.WTS.WTS_INFO_CLASS.WTSUserName,
+                        out IntPtr buffer, out int returned);
+                    if (success)
+                        return Marshal.PtrToStringAnsi(buffer);
+                    else
+                        throw new Exception("Couldn't query username.");
+                }
+                else
+                    throw new Exception("Couldn't connect state.");
+            }
+            Int32 dataSize = Marshal.SizeOf(typeof(Win32.WTS.WTS_SESSION_INFO));
+            Int64 current = (Int64)pSessionInfo;
+            uint sessionIdResult = 0xFFFFFFFF;
+            for (int i = 0; i < count; i++)
+            {
+                Win32.WTS.WTS_SESSION_INFO si =
+                    (Win32.WTS.WTS_SESSION_INFO)Marshal.PtrToStructure((System.IntPtr)current,
+                        typeof(Win32.WTS.WTS_SESSION_INFO));
+                current += dataSize;
+                if (si.State == Win32.WTS.WTS_CONNECTSTATE_CLASS.WTSActive)
+                {
+                    sessionIdResult = (uint)si.SessionID;
+                    if (sessionIdResult == currentSessionId)
+                        break;
+                }
+            }
+            Win32.WTS.WTSFreeMemory(pSessionInfo);
+
+            if (sessionIdResult == 0xFFFFFFFF)
+                sessionIdResult = currentSessionId;
+            
+            bool successState2 = Win32.WTS.WTSQuerySessionInformation(IntPtr.Zero, sessionIdResult, Win32.WTS.WTS_INFO_CLASS.WTSConnectState,
+                out IntPtr bufferState2, out int returnedState2);
+
+            if (successState2 && Marshal.ReadInt32(bufferState2) == 0)
+            {
+                bool success = Win32.WTS.WTSQuerySessionInformation(IntPtr.Zero, sessionIdResult, Win32.WTS.WTS_INFO_CLASS.WTSUserName,
+                    out IntPtr buffer, out int returned);
+                if (success)
+                    return Marshal.PtrToStringAnsi(buffer);
+                else
+                    throw new Exception("Couldn't query username.");
+            }
+            else
+                throw new Exception("Couldn't connect state.");
         }
     }
 }

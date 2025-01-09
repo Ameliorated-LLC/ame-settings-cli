@@ -65,11 +65,6 @@ namespace amecs.Misc
             return true;
         }
         
-        private static string _mountedPath;
-        private static string _isoPath;
-        private static string _isoWinVer;
-        private static int _isoBuild;
-        
         /// <summary>
         /// Asks user to select Windows installation media, mounts it if applicable, and checks its version
         /// </summary>
@@ -79,6 +74,11 @@ namespace amecs.Misc
             string MountedPath, string IsoPath, string Winver, int? Build, bool? VersionsMatch
             ) GetMediaPath(bool winVersionsMustMatch = false, bool isoBuildMustBeReturned = false, bool iso = false, bool usb = false)
         {
+            string _mountedPath = null;
+            string _isoPath = null;
+            string _isoWinVer = null;
+            int _isoBuild;
+            
             var error = ((string)null, "none", (string)null, (int?)null, (bool?)null);
 
             bool usingFolder = usb;
@@ -153,8 +153,8 @@ namespace amecs.Misc
                 {
                     _isoPath = dialog.FileName;
                     if (CheckFileViolation(_isoPath)) return error;
-                    Console.WriteLine();
                     ConsoleTUI.OpenFrame.WriteCentered("Mounting ISO");
+
                 }
                 else
                 {
@@ -181,7 +181,8 @@ namespace amecs.Misc
                     proc.WaitForExit();
 
                     _mountedPath = proc.StandardOutput.ReadLine();
-                }   
+                }
+                Console.WriteLine();
             }                        
             
             // Check WIM version
