@@ -80,7 +80,24 @@ namespace Ameliorated.ConsoleUtils
                 var frameOffset = (InitializedWidth - FrameWidth) / 2;
                 Console.WriteLine(new string(' ', frameOffset) + new string(FrameChar, FrameWidth));
                 Console.WriteLine();
-                WriteCenteredLine(Header);
+                var split = Header.Split('|');
+                if (split.Length > 3)
+                {
+                    var foreground = Console.ForegroundColor;
+                    var centered = CenterLine(Header);
+                    Console.Write(new string(' ', centered.LeaderLength) + "|");
+                    Console.Write(split[1]);
+                    Console.Write("|");
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.Write(split[2]);
+                    Console.ForegroundColor = foreground;
+                    Console.Write("|");
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.Write(split[3]);
+                    Console.ForegroundColor = foreground;
+                    Console.Write("|");
+                } else 
+                    WriteCenteredLine(Header, true);
                 if (paddingLines)
                 {
                     Console.WriteLine();

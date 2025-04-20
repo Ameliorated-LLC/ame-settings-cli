@@ -23,7 +23,7 @@ namespace amecs
 {
     internal class Program
     {
-        public const string Ver = "2.3";
+        public const string Ver = "2.4";
         public static ConsoleTUI.Frame Frame;
 
         [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -117,10 +117,90 @@ namespace amecs
         [STAThread]
         public static async Task Main(string[] args)
         {
-            ConfigureCulture();
-            
-            ConsoleTUI.Initialize("Configure AME");
+            if (args.Length > 1 && args[0] == "--update")
+            {
+                try
+                {
 
+                    int i = 0;
+                    Process process;
+                    while ((process = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(args[1])).FirstOrDefault(x => x.Id != Process.GetCurrentProcess().Id)) != null)
+                    {
+                        Thread.Sleep(100);
+
+                        if (i > 10)
+                        {
+                            try
+                            {
+                                process.Kill();
+                            }
+                            catch (Exception e)
+                            {
+                            }
+                        }
+                        if (i > 20)
+                        {
+                            ConsoleTUI.ShowErrorBox("Update timed out.", null);
+                            Environment.Exit(0);
+                        }
+
+                        i++;
+                    }
+                }
+                catch (Exception e)
+                {
+                }
+                
+                File.Copy(Win32.ProcessEx.GetCurrentProcessFileLocation(), args[1], true);
+                Process.Start(new ProcessStartInfo(args[1], "--updated")
+                {
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Normal
+                });
+                
+                Environment.Exit(0);
+            }
+            if (args.Length > 1 && args[0] == "--updated")
+            {
+                try
+                {
+
+                    int i = 0;
+                    Process process;
+                    while ((process = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(args[1])).FirstOrDefault(x => x.Id != Process.GetCurrentProcess().Id)) != null)
+                    {
+                        Thread.Sleep(100);
+
+                        if (i > 10)
+                        {
+                            try
+                            {
+                                process.Kill();
+                            }
+                            catch (Exception e)
+                            {
+                            }
+                        }
+                        if (i > 20)
+                        {
+                            break;
+                        }
+
+                        i++;
+                    }
+                    
+                    File.Delete(args[1]);
+                }
+                catch (Exception e)
+                {
+                }
+            }
+            
+            ConfigureCulture();
+           
+            bool win11 = Win32.SystemInfoEx.WindowsVersion.MajorVersion >= 11; 
+            ConsoleTUI.Initialize($"{(win11 ? "Privacy+" : "AME10")} Settings");
+            
             if (args.Length > 0 && args[0] == "-Updated")
             {
                 int i = 0;
@@ -144,12 +224,64 @@ namespace amecs
                     catch { }
                 }
             }
-            if (!File.Exists(Environment.ExpandEnvironmentVariables(@"%WINDIR%\System32\sfc1.exe")))
+
+            string ame11Ver = null;
+            using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\AME\Playbooks\Applied\{9010E718-4B54-443F-8354-D893CD50FDDE}"))
+                ame11Ver = key?.GetValue("Version")?.ToString();
+            string ame10Ver = null;
+            using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\AME\Playbooks\Applied\{513722d2-ce95-4d2a-a88a-53570642bc4e}"))
+                ame10Ver = key?.GetValue("Version")?.ToString();
+            
+            if (args.Length > 0 && args[0] == "--uninstall")
+            {
+                Frame = new ConsoleTUI.Frame($"| {(win11 ? "Privacy+" : "AME10")}  | Playbook v{ame11Ver ?? ame10Ver ?? "X.X.X"} | Settings v{Ver} |", false);
+                Frame.Open();
+                
+                Console.WriteLine();
+                Console.WriteLine();
+                Frame.WriteCenteredLine("Uninstalling...");
+                try
+                {
+                    try
+                    {
+                        foreach (var process in Process.GetProcessesByName(Assembly.GetExecutingAssembly().Location).Where(x => x.Id != Process.GetCurrentProcess().Id))
+                        {
+                            process.Kill();
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                    }
+                    
+                    Registry.LocalMachine.DeleteSubKeyTree(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Privacy+ Settings", false);
+                    Registry.LocalMachine.DeleteSubKeyTree(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\AME10 Settings", false);
+
+                    foreach (var userDir in Directory.GetDirectories(Environment.ExpandEnvironmentVariables(@"%SYSTEMDRIVE%\Users")))
+                    {
+                        if (File.Exists(Path.Combine(userDir, @"AppData\Roaming\OpenShell\Pinned\Privacy+ Settings.lnk")))
+                            File.Delete(Path.Combine(userDir, @"AppData\Roaming\OpenShell\Pinned\Privacy+ Settings.lnk"));
+                        if (File.Exists(Path.Combine(userDir, @"AppData\Roaming\OpenShell\Pinned\AME10 Settings.lnk")))
+                            File.Delete(Path.Combine(userDir, @"AppData\Roaming\OpenShell\Pinned\AME10 Settings.lnk"));
+                    }
+
+                    Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"timeout /t 3 /nobreak & del /q /f \"\"{Win32.ProcessEx.GetCurrentProcessFileLocation()}\"\"\"")
+                        { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
+                    
+                    Environment.Exit(0);
+                }
+                catch (Exception e)
+                {
+                    ConsoleTUI.ShowErrorBox("Error while attempting to uninstall: " + e.ToString(), null);
+                }
+
+                return;
+            }
+            
+            if (!File.Exists(Environment.ExpandEnvironmentVariables(@"%WINDIR%\System32\sfc1.exe")) && ame11Ver == null && ame10Ver == null)
             {
                 ConsoleTUI.ShowErrorBox("amecs can only be used with the AME 11/10 Playbooks for AME Wizard.", "amecs");
                 Environment.Exit(1);
             }
-            
             try
             {
                 var server = new ServiceController("LanmanServer");
@@ -166,6 +298,11 @@ namespace amecs
             catch (Exception e)
             {
             }
+
+            if (win11)
+                ame10Ver = null;
+            else
+                ame11Ver = null;
 
             try
             {
@@ -213,7 +350,7 @@ namespace amecs
             
             if (args.Length > 1 && args[0] == "-Uninstall")
             {
-                Frame = new ConsoleTUI.Frame($"| Central AME Script v{Ver} |", false);
+                Frame = new ConsoleTUI.Frame($"| Privacy+ | Playbook v{ame11Ver ?? ame10Ver ?? "X.X.X"} | Settings v{Ver} |", false);
                 Frame.Open();
                 
                 if (Directory.Exists(args[1]) || File.Exists(args[1]))
@@ -235,16 +372,16 @@ namespace amecs
                     var cursorLeft = Console.CursorLeft;
                     var foreground = Console.ForegroundColor;
                     
-                    Console.SetCursorPosition(16, CurrentMainMenu.Choices.Count + 5);
+                    Console.SetCursorPosition(14, CurrentMainMenu.Choices.Count + 3);
                     Console.ForegroundColor = ConsoleColor.Gray;
-                    Console.Write("Update Central AME Script ");
+                    Console.Write($"  Update {(win11 ? "Privacy+" : "AME10")} Settings ");
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.Write($"[v{Ver} --> v{PendingUpdate}]");
                     Console.ForegroundColor = foreground;
                     Console.SetCursorPosition(cursorLeft, cursorTop);
 
-                        CurrentMainMenu.Choices[CurrentMainMenu.Choices.Count - 1] =
-                            new Menu.MenuItem("Update Central AME Script", new Func<Task<bool>>(InstallUpdate))
+                        CurrentMainMenu.Choices[CurrentMainMenu.Choices.Count - 3] =
+                            new Menu.MenuItem($"Update {(win11 ? "Privacy+" : "AME10")} Settings", new Func<Task<bool>>(InstallUpdate))
                             {
                                 SecondaryText = $"[v{Ver} --> v{PendingUpdate}]",
                                 SecondaryTextForeground = ConsoleColor.Yellow,
@@ -254,7 +391,7 @@ namespace amecs
                 }
             });
 
-            Frame = new ConsoleTUI.Frame($"| Central AME Script v{Ver} |", false);
+            Frame = new ConsoleTUI.Frame($"| Privacy+ | Playbook v{ame11Ver ?? ame10Ver ?? "X.X.X"} | Settings v{Ver} |", false);
             Frame.Open();
 
             while (true)
@@ -262,79 +399,31 @@ namespace amecs
                 Globals.UserElevated = Globals.User.IsMemberOf(Globals.Administrators);
 
                 Frame.Clear();
-                bool usernameRequirement = new Reg.Value()
-                {
-                    KeyName = @"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
-                    ValueName = "dontdisplaylastusername",
-                    Data = 1,
-                }.IsEqual();
-
-                                bool hibernation = new Reg.Value()
-                                   {
-                                       KeyName = @"HKLM\SYSTEM\CurrentControlSet\Control\Power",
-                                       ValueName = "HibernateEnabled",
-                                       Data = 1,
-                                   }.IsEqual()
-                                   &&
-                                   new Reg.Value()
-                                   {
-                                       KeyName = @"HKLM\SYSTEM\CurrentControlSet\Control\Power",
-                                       ValueName = "HiberFileType",
-                                       Data = 2,
-                                   }.IsEqual();
-
-                bool uiModified = (File.Exists(Path.Combine(Environment.ExpandEnvironmentVariables(@"%PROGRAMFILES%\Open-Shell\Skins"),
-                    "Fluent-AME.skin7")) || File.Exists(Path.Combine(Environment.ExpandEnvironmentVariables(@"%PROGRAMFILES%\Open-Shell\Skins"),
-                    "Fluent-Metro.skin7"))) && File.Exists(Environment.ExpandEnvironmentVariables(@"%PROGRAMFILES%\Open-Shell\StartMenuDLL.dll"));
                 
-                bool netInstalled = new Reg.Key()
-                {
-                    KeyName = @"HKLM\SOFTWARE\Microsoft\NET Framework Setup\NDP\v3.5",
-                    Operation = RegistryOperation.Add
-                }.IsEqual();
-
                 CurrentMainMenu = new Ameliorated.ConsoleUtils.Menu()
                 {
                     Choices =
                     {
-                        Globals.UserElevated
-                            ? new Menu.MenuItem("Enable Enhanced Security", new Func<Task<bool>>(Elevation.DeElevate))
-                            : new Menu.MenuItem("Disable Enhanced Security", new Func<Task<bool>>(Elevation.Elevate)),
-                        !uiModified
-                            ? new Menu.MenuItem("Enable UI Modifications", new Func<Task<bool>>(UIModifications.Enable))
-                            : new Menu.MenuItem("Disable UI Modifications", new Func<Task<bool>>(UIModifications.Disable)),
-                        usernameRequirement
-                            ? new Menu.MenuItem("Disable Corporate Login",
-                                new Func<Task<bool>>(UsernameRequirement.Disable))
-                            : new Menu.MenuItem("Enable Corporate Login",
-                                new Func<Task<bool>>(UsernameRequirement.Enable)),
-                        hibernation ? 
-                            new Menu.MenuItem("Disable Hibernation", new Func<Task<bool>>(Hibernation.DisableHibernation)) : 
-                            new Menu.MenuItem("Enable Hibernation", new Func<Task<bool>>(Hibernation.EnableHibernation)),
-                        new Menu.MenuItem("Manage Browsers", new Func<Task<bool>>(Browsers.ShowMenu)),
-                        new Menu.MenuItem("Manage User Settings", new Func<Task<bool>>(Users.ShowMenu)),
-                        new Menu.MenuItem("Manage Language Settings", new Func<Task<bool>>(Languages.ShowMenu)),
-                        !netInstalled
-                            ? new Menu.MenuItem("Install .NET 3.5", new Func<Task<bool>>(_NET.ShowMenu))
-                            : new Menu.MenuItem("Install .NET 3.5", new Func<Task<bool>>(_NET.ShowMenu))
-                            {
-                                IsEnabled = false, SecondaryText = "[Installed]",
-                                SecondaryTextForeground = ConsoleColor.Yellow,
-                                PrimaryTextForeground = ConsoleColor.DarkGray
-                            },
+                        new Menu.MenuItem("Manage User Settings", new Func<Task<bool>>(Users.ShowMenu))
+                        {
+                            SecondaryText = $"[Current User: {Truncate(Globals.Username, 12)}]",
+                            SecondaryTextForeground = ConsoleColor.DarkGray,
+                        },
+                        new Menu.MenuItem("Manage System Settings", new Func<Task<bool>>(Actions.SystemActions.SystemMenu.ShowMenu)),
+                        new Menu.MenuItem("Manage Software", new Func<Task<bool>>(Actions.SoftwareMenu.ShowMenu)),
+                        new Menu.MenuItem("Manage Keyboard Languages", new Func<Task<bool>>(Languages.ShowMenu)),
                         Menu.MenuItem.Blank,
-                        new Menu.MenuItem("Check AME Integrity", new Func<Task<bool>>(Integrity.CheckIntegrity)),
-                        new Menu.MenuItem("Uninstall AME", new Func<Task<bool>>(Deameliorate.ShowMenu)),
-                        new Menu.MenuItem("Extra", new Func<Task<bool>>(Extra.Extra.ShowMenu)),
-                        
-                        Menu.MenuItem.Blank,
+                        new Menu.MenuItem($"Verify {(win11 ? "Privacy+" : "AME")} Integrity", new Func<Task<bool>>(Integrity.CheckIntegrity)),
+                        new Menu.MenuItem($"Uninstall {(win11 ? "Privacy+" : "AME10")} Playbook", new Func<Task<bool>>(Deameliorate.ShowMenu)),
                         PendingUpdate == null ?
-                            new Menu.MenuItem("Check For Updates", new Func<Task<bool>>(Update.CheckForUpdateAction))
-                            : new Menu.MenuItem("Update Central AME Script", new Func<Task<bool>>(InstallUpdate))
+                            new Menu.MenuItem("Check for Updates", new Func<Task<bool>>(Update.CheckForUpdateAction))
+                            : new Menu.MenuItem($"Update {(win11 ? "Privacy+" : "AME10")} Settings", new Func<Task<bool>>(InstallUpdate))
                             {
                                 SecondaryText = $"[v{Ver} --> v{PendingUpdate}]",
                                 SecondaryTextForeground = ConsoleColor.Yellow,
                             },
+                        Menu.MenuItem.Blank, 
+                        new Menu.MenuItem("Exit", new Func<Task<bool>>(Globals.ExitAsync))
                     },
                     SelectionForeground = ConsoleColor.Green,
                 };
@@ -372,18 +461,20 @@ namespace amecs
             var cursorLeft = Console.CursorLeft;
             var foreground = Console.ForegroundColor;
             
-            Console.SetCursorPosition(14, CurrentMainMenu.Choices.Count + 5);
+            bool win11 = Win32.SystemInfoEx.WindowsVersion.MajorVersion >= 11;
+            
+            Console.SetCursorPosition(14, CurrentMainMenu.Choices.Count + 3);
             Console.ForegroundColor = ConsoleColor.Gray;
-            Console.Write("  Updating Central AME Script ");
+            Console.Write($"  Updating {(win11 ? "Privacy+" : "AME10")} Settings ");
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write($"[Downloading (0%)]");
             
             var backgroundWorker = new BackgroundWorker();
             backgroundWorker.ProgressChanged += (sender, args) =>
             {
-                Console.SetCursorPosition(14, CurrentMainMenu.Choices.Count + 5);
+                Console.SetCursorPosition(14, CurrentMainMenu.Choices.Count + 3);
                 Console.ForegroundColor = ConsoleColor.Gray;
-                Console.Write("  Updating Central AME Script ");
+                Console.Write($"  Updating {(win11 ? "Privacy+" : "AME10")} Settings ");
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.Write(args.ProgressPercentage == 100 ? $"[Installing]          " : $"[Downloading ({args.ProgressPercentage}%)]");
                 Console.ForegroundColor = foreground;
@@ -393,6 +484,11 @@ namespace amecs
             Console.ForegroundColor = foreground;
             Console.SetCursorPosition(cursorLeft, cursorTop);
             return true;
+        }
+        
+        public static string Truncate(string value, int maxChars)
+        {
+            return value.Length <= maxChars ? value : value.Substring(0, maxChars) + "...";
         }
     }
 }

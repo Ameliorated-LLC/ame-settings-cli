@@ -35,6 +35,13 @@ namespace amecs
             Environment.Exit(0);
             return true;
         }
+        public static Task<bool> ExitAsync()
+        {
+            ConsoleTUI.Close();
+            Environment.Exit(0);
+            return Task.FromResult(true);;
+        }
+
         
         public static readonly int WinVer = int.Parse(Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion").GetValue("CurrentBuildNumber").ToString());
     }

@@ -16,37 +16,60 @@ namespace amecs.Actions
     {
         public static Task<bool> ShowMenu()
         {
-            bool firefoxInstalled = Directory.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramData%\chocolatey\lib\Firefox"));
-            bool firefoxConflict = !firefoxInstalled && (Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Clients\StartMenuInternet")?.GetSubKeyNames().Any(x => x.Contains("Firefox")) ?? false);
-            bool ugcInstalled = File.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\UngoogledChromium\Ungoogled Uninstaller.exe"));
-            
-            var mainMenu = new Ameliorated.ConsoleUtils.Menu()
+            while (true)
             {
-                Choices =
+                bool firefoxInstalled = Directory.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramData%\chocolatey\lib\Firefox"));
+                bool firefoxConflict = !firefoxInstalled && (Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Clients\StartMenuInternet")?.GetSubKeyNames().Any(x => x.Contains("Firefox")) ?? false);
+                bool ugcInstalled = File.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\UngoogledChromium\Ungoogled Uninstaller.exe"));
+            
+                var mainMenu = new Menu()
                 {
-                    !firefoxInstalled
-                        ? !firefoxConflict
-                            ? new Menu.MenuItem("Install Configured Firefox", new Func<bool>(InstallFirefox))
-                            : new Menu.MenuItem("Install Configured Firefox", new Func<bool>(InstallFirefox))
-                            {
-                                IsEnabled = false, SecondaryText = "[Conflict]",
-                                SecondaryTextForeground = ConsoleColor.Yellow,
-                                PrimaryTextForeground = ConsoleColor.DarkGray
-                            }
-                        : new Menu.MenuItem("Uninstall Firefox", new Func<bool>(UninstallFirefox)),
+                    Choices =
+                    {
+                        !firefoxInstalled
+                            ? !firefoxConflict
+                                ? new Menu.MenuItem("Install Configured Firefox", new Func<bool>(InstallFirefox))
+                                : new Menu.MenuItem("Install Configured Firefox", new Func<bool>(InstallFirefox))
+                                {
+                                    IsEnabled = false, SecondaryText = "[Conflict]",
+                                    SecondaryTextForeground = ConsoleColor.Yellow,
+                                    PrimaryTextForeground = ConsoleColor.DarkGray
+                                }
+                            : new Menu.MenuItem("Uninstall Firefox", new Func<bool>(UninstallFirefox)),
 
-                    !ugcInstalled ?
-                        new Menu.MenuItem("Install Configured Ungoogled Chromium", new Func<bool>(InstallUGC)) 
-                        : new Menu.MenuItem("Uninstall Ungoogled Chromium", new Func<bool>(UninstallUGC)),
-                    Menu.MenuItem.Blank,
-                    new Menu.MenuItem("Return to Menu", new Func<bool>(() => true)),
-                    new Menu.MenuItem("Exit", new Func<bool>(Globals.Exit)),
-                },
-                SelectionForeground = ConsoleColor.Green
-            };
-            mainMenu.Write();
-            var result = (Func<bool>)mainMenu.Load(true);
-            return Task.FromResult(result.Invoke());
+                        !ugcInstalled ?
+                            new Menu.MenuItem("Install Configured Ungoogled Chromium", new Func<bool>(InstallUGC)) 
+                            : new Menu.MenuItem("Uninstall Ungoogled Chromium", new Func<bool>(UninstallUGC)),
+                        Menu.MenuItem.Blank,
+                        new Menu.MenuItem("Return to Menu", null),
+                        new Menu.MenuItem("Exit", new Func<bool>(Globals.Exit)),
+                    },
+                    SelectionForeground = ConsoleColor.Green
+                };
+                
+                Func<bool> result;
+                try
+                {
+                    mainMenu.Write();
+                    var res = mainMenu.Load(true);
+                    if (res == null)
+                        return Task.FromResult(true);
+                    result = (Func<bool>)res;
+                } catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    Console.ReadLine();
+                    return Task.FromResult(false);
+                }
+
+                try
+                {
+                    result.Invoke();
+                } catch (Exception e)
+                {
+                    ConsoleTUI.ShowErrorBox("Error while running an action: " + e.ToString(), null);
+                }
+            }
         }
 
         private static bool InstallFirefox() => amecs.RunBasicAction("Installing Firefox", "Firefox was successfully installed", new Action(
@@ -106,7 +129,6 @@ namespace amecs.Actions
                 process.WaitForExit();
                 if (process.ExitCode != 0)
                     throw new Exception("Chocolatey uninstall exited with non-zero exit code: " + process.ExitCode);
-
             }));
         
 
@@ -164,7 +186,7 @@ namespace amecs.Actions
         [DllImport("wininet.dll", SetLastError = true)]
         private static extern bool InternetCheckConnection(string lpszUrl, int dwFlags, int dwReserved);
 
-        private static bool CheckInternet()
+        public static bool CheckInternet()
         {
             try
             {

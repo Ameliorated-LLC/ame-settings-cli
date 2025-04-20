@@ -13,27 +13,6 @@ namespace amecs.Actions
 {
     public static class UserPass
     {
-        public static Task<bool> ShowMenu()
-        {
-            var mainMenu = new Ameliorated.ConsoleUtils.Menu()
-            {
-                Choices =
-                {
-                    new Menu.MenuItem("Change Username", new Func<bool>(ChangeUsername)),
-                    new Menu.MenuItem("Change Password", new Func<bool>(ChangePassword)),
-                    new Menu.MenuItem("Change Display Name", new Func<bool>(ChangeDisplayName)),
-                    new Menu.MenuItem("Change Administrator Password", new Func<bool>(ChangeAdminPassword)),
-                    Menu.MenuItem.Blank,
-                    new Menu.MenuItem("Return to Menu", new Func<bool>(() => true)),
-                    new Menu.MenuItem("Exit", new Func<bool>(Globals.Exit)),
-                },
-                SelectionForeground = ConsoleColor.Green
-            };
-            mainMenu.Write();
-            var result = (Func<bool>)mainMenu.Load(true);
-            return Task.FromResult(result.Invoke());
-        }
-        
         public static bool ChangeUsername()
         {
             try
@@ -43,7 +22,7 @@ namespace amecs.Actions
                     var username = new InputPrompt() { Text = "Enter new username, or press escape to quit: " }.Start();
                     if (username == null)
                         return true;
-
+                   
                     if (String.IsNullOrEmpty(username) || !Regex.Match(username, @"^\w[\w\.\- ]{0,19}$").Success)
                     {
                         ConsoleTUI.OpenFrame.WriteLine("Username is invalid.");
@@ -56,8 +35,35 @@ namespace amecs.Actions
                         ConsoleTUI.OpenFrame.WriteLine("Username matches the current username.");
                         Console.WriteLine();
                         continue;
-                    }
+                    } 
                     
+                    Console.WriteLine();
+                    
+                    var choice = new ChoicePrompt() { Text = "Set a separate display name? (Y/N): " }.Start();
+                    if (choice == null)
+                        return false;
+                    
+                    bool differentDisplayName = choice == 0;
+
+                    string displayName = null;
+
+                    if (differentDisplayName)
+                    {
+                        displayName = new InputPrompt() { Text = "Enter new username, or press escape to quit: " }.Start();
+                        if (displayName == null)
+                            return true;
+                        
+                        ConsoleTUI.OpenFrame.WriteCentered("\r\nSetting display name");
+                        
+                        using (new ConsoleUtils.LoadingIndicator(true))
+                        {
+                            Globals.User.DisplayName = displayName;
+                            Globals.User.Save();
+                    
+                            Thread.Sleep(800);
+                        }
+                    }
+
                     try
                     {
                         ConsoleTUI.OpenFrame.WriteCentered("\r\nSetting new username");

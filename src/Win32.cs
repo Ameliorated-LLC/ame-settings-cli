@@ -140,6 +140,7 @@ namespace amecs
                 public int MajorVersion { get; set; }
                 public int BuildNumber { get; set; }
                 public int UpdateNumber { get; set; }
+                [CanBeNull] public string DisplayVersion { get; set; } = null!;
                 public string Edition { get; set; } = null!;
             }
 
@@ -152,6 +153,13 @@ namespace amecs
                 {
                     result.BuildNumber = Int32.Parse((string)Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "CurrentBuildNumber", (string)"-1")!);
                     result.UpdateNumber = (int)Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "UBR", (int)0)!;
+                    try
+                    {
+                        result.DisplayVersion = (string)Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "DisplayVersion", null);
+                    }
+                    catch (Exception e)
+                    {
+                    }
                     failed = result.BuildNumber == -1;
                 }
                 catch (Exception e)

@@ -26,37 +26,38 @@ namespace amecs.Actions
                 
                 var mainMenu = new Ameliorated.ConsoleUtils.Menu()
                 {
+                    EscapeValue = null,
                     Choices =
                     {
-                        true
-                            ? new Menu.MenuItem("Change Display Language", new Func<bool>(ShowDisplayMenu))
-                            {
-                                IsEnabled = false,
-                                SecondaryText = "[Not Supported]",
-                                SecondaryTextForeground = ConsoleColor.Red,
-                                PrimaryTextForeground = ConsoleColor.DarkGray
-                            }
-                            : new Menu.MenuItem("Change Display Language", new Func<bool>(ShowDisplayMenu)),
+                        //true
+                        //    ? new Menu.MenuItem("Change Display Language", new Func<bool>(ShowDisplayMenu))
+                        //    {
+                        //        IsEnabled = false,
+                        //        SecondaryText = "[Not Supported]",
+                        //        SecondaryTextForeground = ConsoleColor.Red,
+                        //        PrimaryTextForeground = ConsoleColor.DarkGray
+                        //    }
+                        //    : new Menu.MenuItem("Change Display Language", new Func<bool>(ShowDisplayMenu)),
                         new Menu.MenuItem("Add Keyboard Language", new Func<bool>(ShowAddKeyboardLanguageMenu)),
                         new Menu.MenuItem("Remove Keyboard Language", new Func<bool>(ShowRemoveKeyboardLanguageMenu)),
-                        Globals.WinVer >= 22000
-                            ? new Menu.MenuItem("Install Language Pack", new Func<bool>(ShowLanguagePackMenu))
-                            {
-                                IsEnabled = false,
-                                SecondaryText = "[Not Supported]",
-                                SecondaryTextForeground = ConsoleColor.Red,
-                                PrimaryTextForeground = ConsoleColor.DarkGray
-                            }
-                            : new Menu.MenuItem("Install Language Pack", new Func<bool>(ShowLanguagePackMenu)),
-                        Globals.WinVer >= 22000
-                            ? new Menu.MenuItem("Uninstall Language Pack", new Func<bool>(ShowRemoveLanguagePackMenu))
-                            {
-                                IsEnabled = false,
-                                SecondaryText = "[Not Supported]",
-                                SecondaryTextForeground = ConsoleColor.Red,
-                                PrimaryTextForeground = ConsoleColor.DarkGray
-                            }
-                            : new Menu.MenuItem("Uninstall Language Pack", new Func<bool>(ShowRemoveLanguagePackMenu)),
+                        //Globals.WinVer >= 22000
+                        //    ? new Menu.MenuItem("Install Language Pack", new Func<bool>(ShowLanguagePackMenu))
+                        //    {
+                        //        IsEnabled = false,
+                        //        SecondaryText = "[Not Supported]",
+                        //        SecondaryTextForeground = ConsoleColor.Red,
+                        //        PrimaryTextForeground = ConsoleColor.DarkGray
+                        //    }
+                        //    : new Menu.MenuItem("Install Language Pack", new Func<bool>(ShowLanguagePackMenu)),
+                        //Globals.WinVer >= 22000
+                        //    ? new Menu.MenuItem("Uninstall Language Pack", new Func<bool>(ShowRemoveLanguagePackMenu))
+                        //    {
+                        //        IsEnabled = false,
+                        //        SecondaryText = "[Not Supported]",
+                        //        SecondaryTextForeground = ConsoleColor.Red,
+                        //        PrimaryTextForeground = ConsoleColor.DarkGray
+                        //    }
+                        //    : new Menu.MenuItem("Uninstall Language Pack", new Func<bool>(ShowRemoveLanguagePackMenu)),
                         Menu.MenuItem.Blank,
                         new Menu.MenuItem("Return to Menu", null),
                         new Menu.MenuItem("Exit", new Func<bool>(Globals.Exit))

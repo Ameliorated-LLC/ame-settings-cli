@@ -27,8 +27,8 @@ namespace amecs.Actions
                 {
                     httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("curl/7.55.1");
 
-                    string releasesUrl =
-                        "https://api.github.com/repos/Ameliorated-LLC/amecs/releases";
+                    bool win11 = Win32.SystemInfoEx.WindowsVersion.MajorVersion >= 11; 
+                    string releasesUrl = win11 ? "https://api.github.com/repos/Ameliorated-LLC/ame-settings-cli/releases" : "https://api.github.com/repos/Ameliorated-LLC/ame-settings-legacy/releases";
                     var response = await httpClient.GetAsync(releasesUrl);
                     response.EnsureSuccessStatusCode();
 
@@ -65,8 +65,8 @@ namespace amecs.Actions
                         {
                             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("curl/7.55.1");
 
-                            string releasesUrl =
-                                "https://api.github.com/repos/Ameliorated-LLC/amecs/releases";
+                            bool win11 = Win32.SystemInfoEx.WindowsVersion.MajorVersion >= 11; 
+                            string releasesUrl = win11 ? "https://api.github.com/repos/Ameliorated-LLC/ame-settings-cli/releases" : "https://api.github.com/repos/Ameliorated-LLC/ame-settings-legacy/releases";
                             var response = await httpClient.GetAsync(releasesUrl);
                             response.EnsureSuccessStatusCode();
 
@@ -194,14 +194,15 @@ namespace amecs.Actions
 
         public static async Task InstallUpdate(BackgroundWorker BackgroundWorker)
         {
-            CultureInfo.GetCultures(CultureTypes.AllCultures);
             if (BackgroundWorker == null)
-                throw new Exception("InstallWizardUpdate was called with no BackgroundWorker specified.");
+                throw new Exception("InstallUpdate was called with no BackgroundWorker specified.");
             BackgroundWorker.WorkerReportsProgress = true;
 
             BackgroundWorker.ReportProgress(5);
 
             var amecsPath = Assembly.GetExecutingAssembly().Location;
+            var dest = Environment.ExpandEnvironmentVariables(@"%TEMP%\AME-amecs-Update-" +
+                                                              new Random().Next(1000, 99999).ToString() + ".exe");
             // Download/install update
             using (var httpClient = new HttpProgressClient())
             {
@@ -212,7 +213,8 @@ namespace amecs.Actions
                 {
                     httpClient.Client.DefaultRequestHeaders.UserAgent.ParseAdd("curl/7.55.1");
 
-                    string releasesUrl = "https://api.github.com/repos/Ameliorated-LLC/amecs/releases";
+                    bool win11 = Win32.SystemInfoEx.WindowsVersion.MajorVersion >= 11; 
+                    string releasesUrl = win11 ? "https://api.github.com/repos/Ameliorated-LLC/ame-settings-cli/releases" : "https://api.github.com/repos/Ameliorated-LLC/ame-settings-legacy/releases";
                     var response = await httpClient.GetAsync(releasesUrl);
                     response.EnsureSuccessStatusCode();
 
@@ -266,9 +268,6 @@ namespace amecs.Actions
                 catch
                 {
                 }
-
-                var dest = Environment.ExpandEnvironmentVariables(@"%TEMP%\AME-amecs-Update-" +
-                                                                  new Random().Next(1000, 99999).ToString() + ".exe");
                 try
                 {
                     await httpClient.StartDownload(downloadUrl, dest, size);
@@ -276,11 +275,11 @@ namespace amecs.Actions
                 catch (Exception e)
                 {
                     ConsoleTUI.ShowErrorBox("Failed to download update: " + e.Message, null);
+                    return;
                 }
 
                 BackgroundWorker.ReportProgress(100);
 
-                var replacedPath = amecsPath.Replace(".exe", ".bak");
                 try
                 {
                     FileSecurity fileSecurity = File.GetAccessControl(dest);
@@ -288,12 +287,6 @@ namespace amecs.Actions
                         FileSystemRights.Read | FileSystemRights.ExecuteFile, AccessControlType.Allow));
 
                     File.SetAccessControl(dest, fileSecurity);
-                    
-                    if (File.Exists(replacedPath))
-                        File.Delete(replacedPath);
-
-                    File.Move(amecsPath, replacedPath);
-                    File.Move(dest, amecsPath);
                 }
                 catch (Exception e)
                 {
@@ -312,21 +305,15 @@ namespace amecs.Actions
 
             try
             {
-                Process.Start(amecsPath, "-Updated");
+                Process.Start(new ProcessStartInfo(dest, $"--update \"{amecsPath}\"")
+                {
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                });
+                Environment.Exit(0);
             }
             catch (Exception e)
             {
-                try
-                {
-                    if (File.Exists(amecsPath))
-                        File.Delete(amecsPath);
-                    if (File.Exists(amecsPath.Replace(".exe", ".bak")))
-                        File.Move(amecsPath.Replace(".exe", ".bak"), amecsPath);
-                }
-                catch
-                {
-                }
-
                 ConsoleTUI.ShowErrorBox("Failed to install update: " + e.Message, null);
                 return;
             }

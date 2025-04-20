@@ -20,9 +20,10 @@ namespace amecs.Actions
         private static string _isoPath;
 
         public static Task<bool> ShowMenu()
-        {
+        {                    
             var mainMenu = new Ameliorated.ConsoleUtils.Menu()
             {
+                EscapeValue = new Func<bool>(() => true),
                 Choices =
                 {
                     new Menu.MenuItem("Install .NET 3.5 using a Windows USB", new Func<bool>(InstallUSB)),
@@ -55,6 +56,8 @@ namespace amecs.Actions
             if (iso && !usb)
                 ConsoleTUI.OpenFrame.WriteCenteredLine("Select Windows ISO file");
 
+            Console.WriteLine();
+            
             (_mountedPath, _isoPath, _, _, _) = SelectWindowsImage.GetMediaPath(true, usb: usb, iso: iso);
             if (_mountedPath == null) return false;
 
@@ -67,7 +70,7 @@ namespace amecs.Actions
                 return false;
             }
             
-            ConsoleTUI.OpenFrame.WriteCentered("\r\nInstalling .NET 3.5");
+            ConsoleTUI.OpenFrame.WriteCentered("Installing .NET 3.5");
             var topCache = Console.CursorTop;
             var leftCache = Console.CursorLeft;
             Console.WriteLine();
@@ -119,11 +122,23 @@ namespace amecs.Actions
 
                 Console.WriteLine();
                 Console.WriteLine();
-                ConsoleTUI.OpenFrame.Close("DISM error: " + e.Message, ConsoleColor.Red, Console.BackgroundColor, new ChoicePrompt()
+                if (e is DismException dismException && dismException.HResult == -2146498529)
                 {
-                    AnyKey = true,
-                    Text = "Press any key to return to the Menu: "
-                });
+                    ConsoleTUI.OpenFrame.Close($"The selected Windows image version must match the currently installed version of Windows ({Win32.SystemInfoEx.WindowsVersion.DisplayVersion}).", ConsoleColor.Red, Console.BackgroundColor, new ChoicePrompt()
+                    {
+                        AnyKey = true,
+                        Text = "Press any key to return to the Menu: "
+                    });
+                }
+                else
+                {
+                    ConsoleTUI.OpenFrame.Close("DISM error: " + e.Message, ConsoleColor.Red, Console.BackgroundColor, new ChoicePrompt()
+                    {
+                        AnyKey = true,
+                        Text = "Press any key to return to the Menu: "
+                    });
+                }
+
                 return false;
             }
             

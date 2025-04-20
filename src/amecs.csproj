@@ -64,21 +64,25 @@
         <Reference Include="WindowsBase" />
     </ItemGroup>
     <ItemGroup>
-        <Compile Include="Actions\.NET.cs" />
-        <Compile Include="Actions\AutoLogon.cs" />
-        <Compile Include="Actions\Browsers.cs" />
         <Compile Include="Actions\Deameliorate.cs" />
-        <Compile Include="Actions\Elevation.cs" />
-        <Compile Include="Actions\Hibernation.cs" />
         <Compile Include="Actions\Integrity.cs" />
         <Compile Include="Actions\Languages.cs" />
         <Compile Include="Actions\Lockscreen.cs" />
-        <Compile Include="Actions\Profile.cs" />
-        <Compile Include="Actions\UIModifications.cs" />
+        <Compile Include="Actions\SoftwareActions\.NET.cs" />
+        <Compile Include="Actions\SoftwareActions\Browsers.cs" />
+        <Compile Include="Actions\SoftwareActions\SoftwareMenu.cs" />
+        <Compile Include="Actions\SystemActions\CreateUser.cs" />
+        <Compile Include="Actions\SystemActions\Elevation.cs" />
+        <Compile Include="Actions\SystemActions\Extra.cs" />
+        <Compile Include="Actions\SystemActions\Hibernation.cs" />
+        <Compile Include="Actions\SystemActions\SystemMenu.cs" />
+        <Compile Include="Actions\SystemActions\UIModifications.cs" />
+        <Compile Include="Actions\SystemActions\UsernameRequirement.cs" />
         <Compile Include="Actions\Update.cs" />
-        <Compile Include="Actions\UsernameRequirement.cs" />
-        <Compile Include="Actions\UserPass.cs" />
-        <Compile Include="Actions\Users.cs" />
+        <Compile Include="Actions\UserActions\AutoLogon.cs" />
+        <Compile Include="Actions\UserActions\Profile.cs" />
+        <Compile Include="Actions\UserActions\UserPass.cs" />
+        <Compile Include="Actions\UserActions\Users.cs" />
         <Compile Include="amecs.cs" />
         <Compile Include="Ameliorated.ConsoleUtils\ConsoleTUI\ConsoleTUI.cs" />
         <Compile Include="Ameliorated.ConsoleUtils\ConsoleTUI\Frame.cs" />
@@ -90,7 +94,6 @@
         <Compile Include="Ameliorated.ConsoleUtils\Extensions.cs" />
         <Compile Include="Ameliorated.ConsoleUtils\ParentProcess.cs" />
         <Compile Include="Ameliorated.ConsoleUtils\Payload.cs" />
-        <Compile Include="Extra\Extra.cs" />
         <Compile Include="Extra\NVCP.cs" />
         <Compile Include="Extra\WSH.cs" />
         <Compile Include="Globals.cs" />
@@ -108,6 +111,7 @@
       <None Include="App.config" />
     </ItemGroup>
     <ItemGroup>
+      <Folder Include="Actions\LanguageActions\" />
       <Folder Include="Menus" />
       <Folder Include="NSudo" />
     </ItemGroup>

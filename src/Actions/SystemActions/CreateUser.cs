@@ -1,87 +1,19 @@
 ﻿using System;
 using System.DirectoryServices;
-using System.DirectoryServices.AccountManagement;
 using System.Linq;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.ServiceProcess;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Ameliorated.ConsoleUtils;
 using Microsoft.Win32;
 
-namespace amecs.Actions
+namespace amecs.Actions.SystemActions
 {
-    public class Users
+    public class CreateUser
     {
-        public static Task<bool> ShowMenu()
-        {
-            while (true)
-            {
-                Program.Frame.Clear();
-                
-                bool autoLogonEnabled = new Reg.Value()
-                                        {
-                                            KeyName = @"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon",
-                                            ValueName = "DefaultUsername",
-                                            Data = Globals.Username,
-                                        }.IsEqual() &&
-                                        new Reg.Value()
-                                        {
-                                            KeyName = @"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon",
-                                            ValueName = "AutoAdminLogon",
-                                            Data = "1",
-                                        }.IsEqual();
-
-                var mainMenu = new Ameliorated.ConsoleUtils.Menu()
-                {
-                    Choices =
-                    {
-                        new Menu.MenuItem("Change Username", new Func<bool>(UserPass.ChangeUsername)),
-                        new Menu.MenuItem("Change Password", new Func<bool>(UserPass.ChangePassword)),
-                        new Menu.MenuItem("Change Display Name", new Func<bool>(UserPass.ChangeDisplayName)),
-                        new Menu.MenuItem("Change Profile Image", new Func<bool>(Profile.ChangeImage)),
-                        autoLogonEnabled
-                            ? new Menu.MenuItem("Disable AutoLogon", new Func<bool>(AutoLogon.Disable))
-                            : new Menu.MenuItem("Enable AutoLogon", new Func<bool>(AutoLogon.Enable)),
-                        Menu.MenuItem.Blank,
-                        new Menu.MenuItem("Change Administrator Password", new Func<bool>(UserPass.ChangeAdminPassword)),
-                        Globals.WinVer <= 19043 ?
-                            new Menu.MenuItem("Create New User (Legacy)", new Func<bool>(CreateNewUserLegacy)) : 
-                            new Menu.MenuItem("Create New User", new Func<bool>(CreateNewUser)),
-                        Menu.MenuItem.Blank,
-                        new Menu.MenuItem("Return to Menu", null),
-                        new Menu.MenuItem("Exit", new Func<bool>(Globals.Exit))
-                    },
-                    SelectionForeground = ConsoleColor.Green
-                };
-                Func<bool> result;
-                try
-                {
-                    mainMenu.Write();
-                    var res = mainMenu.Load(true);
-                    if (res == null)
-                        return Task.FromResult(true);
-                    result = (Func<bool>)res;
-                } catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                    Console.ReadLine();
-                    return Task.FromResult(false);
-                }
-
-                try
-                {
-                    result.Invoke();
-                } catch (Exception e)
-                {
-                    ConsoleTUI.ShowErrorBox("Error while running an action: " + e.ToString(), null);
-                }
-            }
-        }
-
-        private static bool CreateNewUserLegacy()
+        
+        public static bool CreateNewUserLegacy()
         {
             var choice = new ChoicePrompt() { Text = "WARNING: This is a deprecated action, and the new user\r\nwill not be fully functional. Continue? (Y/N): ", TextForeground = ConsoleColor.Yellow}.Start();
             if (choice == null || choice == 1)
@@ -90,7 +22,7 @@ namespace amecs.Actions
             ConsoleTUI.OpenFrame.WriteLine();
             try
             {
-                if (CreateUser() == false)
+                if (CreateUserInternal() == false)
                     return true;
 
             } catch (Exception e)
@@ -222,11 +154,11 @@ namespace amecs.Actions
             return true;
         }
         
-        private static bool CreateNewUser()
+        public static bool CreateNewUser()
         {
             try
             {
-                if (CreateUser() == false)
+                if (CreateUserInternal() == false)
                     return true;
 
             } catch (Exception e)
@@ -240,7 +172,7 @@ namespace amecs.Actions
             return true;
         }
 
-        private static bool CreateUser()
+        public static bool CreateUserInternal()
         {
             var choice = new ChoicePrompt() { Text = "Make user an Administrator? (Y/N): " }.Start();
             if (choice == null)

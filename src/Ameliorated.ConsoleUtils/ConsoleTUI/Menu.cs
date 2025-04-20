@@ -13,6 +13,18 @@ namespace Ameliorated.ConsoleUtils
         public List<MenuItem> Choices { get; set; } = new List<MenuItem>();
         private int TotalOffset = 2;
 
+        public object EscapeValue
+        {
+            get => _escapeValue;
+            set
+            {
+                _escapeValue = value;
+                _escapeValueSet = true;
+            }
+        }
+        
+        private object _escapeValue;
+        private bool _escapeValueSet = false;
         private int? _offset = null;
 
         public int Offset
@@ -218,7 +230,7 @@ namespace Ameliorated.ConsoleUtils
                     validIndex -= 1;
                 }
 
-                if (keyPressed == ConsoleKey.RightArrow  || keyPressed == ConsoleKey.A || keyPressed == ConsoleKey.PageUp ||
+                if (keyPressed == ConsoleKey.RightArrow || keyPressed == ConsoleKey.D || keyPressed == ConsoleKey.PageUp ||
                     (keyPressed == ConsoleKey.Enter && currentValidChoices[validIndex].IsNextButton))
                 {
                     if (pageIndex == pages)
@@ -262,7 +274,7 @@ namespace Ameliorated.ConsoleUtils
                     continue;
                 }
 
-                if (keyPressed == ConsoleKey.LeftArrow || keyPressed == ConsoleKey.D || keyPressed == ConsoleKey.PageDown ||
+                if (keyPressed == ConsoleKey.LeftArrow || keyPressed == ConsoleKey.A || keyPressed == ConsoleKey.PageDown ||
                     (keyPressed == ConsoleKey.Enter && currentValidChoices[validIndex].IsPreviousButton))
                 {
                     if (pageIndex == 1)
@@ -310,6 +322,16 @@ namespace Ameliorated.ConsoleUtils
                 if (keyPressed == ConsoleKey.Enter)
                 {
                     break;
+                }
+
+                if (keyPressed == ConsoleKey.Escape && _escapeValueSet)
+                {
+                    if (clearFrame && CloseFrame)
+                        Frame.Clear();
+            
+                    Console.CursorVisible = visCache;
+
+                    return EscapeValue;
                 }
             }
 

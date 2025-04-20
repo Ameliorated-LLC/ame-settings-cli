@@ -6,7 +6,9 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Ameliorated.ConsoleUtils;
+using IWshRuntimeLibrary;
 using Microsoft.Win32;
+using File = System.IO.File;
 
 namespace amecs.Actions
 {
@@ -291,13 +293,28 @@ namespace amecs.Actions
                 if (Process.GetProcessesByName("explorer").Length == 0)
                     NSudo.RunProcessAsUser(NSudo.GetUserToken(), "explorer.exe", "", 0);
                 
-                if (File.Exists(Environment.ExpandEnvironmentVariables(@"%WINDIR%\System32\amecs.exe")))
+                try
                 {
-                    if (!Directory.Exists($@"{Globals.UserFolder}\AppData\Roaming\OpenShell\Pinned"))
-                        Directory.CreateDirectory($@"{Globals.UserFolder}\AppData\Roaming\OpenShell\Pinned");
-                    Process.Start(new ProcessStartInfo("PowerShell",
-                            $@" -NoP -C ""$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('{Globals.UserFolder}\AppData\Roaming\OpenShell\Pinned\Configure AME.lnk'); $S.TargetPath = '{Environment.ExpandEnvironmentVariables(@"%WINDIR%\System32\amecs.exe")}'; $S.Save()""")
-                        { UseShellExecute = false, CreateNoWindow = true })!.WaitForExit();
+                    bool win11 = Win32.SystemInfoEx.WindowsVersion.MajorVersion >= 11; 
+                    if (File.Exists(Environment.ExpandEnvironmentVariables($@"%PROGRAMDATA%\AME\{(win11 ? "privacy+_settings" : "ame10_settings")}.exe")))
+                    {
+                        foreach (var userDir in Directory.GetDirectories(Environment.ExpandEnvironmentVariables(@"%SYSTEMDRIVE%\Users")))
+                        {
+                            if (Directory.Exists(Path.Combine(userDir, @"AppData\Roaming\OpenShell\Pinned")))
+                            {
+                                if (!File.Exists(Path.Combine(userDir, $@"AppData\Roaming\OpenShell\Pinned\{(win11 ? "Privacy+" : "AME10")} Settings.lnk")))
+                                {
+                                    var shell = new WshShell();
+                                    var shortcut = (IWshShortcut)shell.CreateShortcut(Path.Combine(userDir, $@"AppData\Roaming\OpenShell\Pinned\{(win11 ? "Privacy+" : "AME10")} Settings.lnk"));
+                                    shortcut.TargetPath = Environment.ExpandEnvironmentVariables($@"%PROGRAMDATA%\AME\{(win11 ? "privacy+_settings" : "ame10_settings")}.exe");
+                                    shortcut.Save();
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
                 }
             });
 

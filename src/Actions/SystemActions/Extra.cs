@@ -8,9 +8,10 @@ using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
 using amecs.Actions;
+using amecs.Extra;
 using Ameliorated.ConsoleUtils;
 
-namespace amecs.Extra
+namespace amecs.Actions.SystemActions
 {
     public static partial class Extra
     {
@@ -111,7 +112,7 @@ namespace amecs.Extra
             }
         }
         
-        private static bool RestoreSettingsPages() =>amecs.RunBasicAction("Restoring settings pages","Successfully restored settings pages",() => 
+        public static bool RestoreSettingsPages() =>amecs.RunBasicAction("Restoring settings pages","Successfully restored settings pages",() => 
         { 
             new Reg.Value()
             {
@@ -122,7 +123,7 @@ namespace amecs.Extra
             }.Apply(true, false);
             Thread.Sleep(1600); 
         });
-        private static bool HideSettingsPages() =>amecs.RunBasicAction("Restoring settings pages","Successfully restored settings pages",() => 
+        public static bool HideSettingsPages() =>amecs.RunBasicAction("Restoring settings pages","Successfully restored settings pages",() => 
         { 
             new Reg.Value()
             {
@@ -141,7 +142,7 @@ namespace amecs.Extra
             Thread.Sleep(1600); 
         });
 
-        private static Menu.MenuItem GetNVCPItem()
+        public static Menu.MenuItem GetNVCPItem()
         {
             if (File.Exists(Environment.ExpandEnvironmentVariables(@"%PROGRAMFILES%\NVIDIA Control Panel\nvcplui.exe")))
                 return new Menu.MenuItem("Uninstall NVIDIA Control Panel", new Func<bool>(NVCP.Uninstall));
@@ -217,7 +218,7 @@ namespace amecs.Extra
             return new Menu.MenuItem("Install NVIDIA Control Panel", new Func<bool>(NVCP.InstallFromNetwork));
         }
 
-        private static Menu.MenuItem GetWSHItem()
+        public static Menu.MenuItem GetWSHItem()
         {
             if (new Reg.Value()
                 {
@@ -242,7 +243,7 @@ namespace amecs.Extra
             }.IsEqual() ? new Menu.MenuItem("Disable Windows Script Host [WSH] (Legacy)", new Func<bool>(WSH.Enable)) : new Menu.MenuItem("Disable Windows Script Host [WSH] (Legacy)", new Func<bool>(WSH.Disable));
         }
 
-        private static bool EnableNotifCen() =>amecs.RunBasicAction("Enabling Notification Center","Notification Center enabled successfully",() => 
+        public static bool EnableNotifCen() =>amecs.RunBasicAction("Enabling Notification Center","Notification Center enabled successfully",() => 
         { 
             new Reg.Value()
                 {
@@ -253,7 +254,7 @@ namespace amecs.Extra
             Thread.Sleep(1600); 
          }, true);
 
-        private static bool DisableNotifCen() =>amecs.RunBasicAction("Disabling Notification Center","Notification Center disabled successfully",() => 
+        public static bool DisableNotifCen() =>amecs.RunBasicAction("Disabling Notification Center","Notification Center disabled successfully",() => 
         { 
             new Reg.Value()
                 {
@@ -264,7 +265,7 @@ namespace amecs.Extra
             Thread.Sleep(1600); 
          }, true);
 
-        private static bool EnableNotifications() =>amecs.RunBasicAction("Enabling desktop notifications","Enabled desktop notifications successfully",() => 
+        public static bool EnableNotifications() =>amecs.RunBasicAction("Enabling desktop notifications","Enabled desktop notifications successfully",() => 
         { 
             new Reg.Value()
                 {
@@ -275,7 +276,7 @@ namespace amecs.Extra
             Thread.Sleep(1600); 
          }, true);
 
-        private static bool DisableNotifications() =>amecs.RunBasicAction("Disabling desktop notifications","Disabled desktop notifications successfully",() => 
+        public static bool DisableNotifications() =>amecs.RunBasicAction("Disabling desktop notifications","Disabled desktop notifications successfully",() => 
         { 
             new Reg.Value()
                 {
@@ -286,7 +287,7 @@ namespace amecs.Extra
             Thread.Sleep(1600); 
          }, true);
 
-        private static bool EnableVBS() =>amecs.RunBasicAction("Enabling Visual Basic Script","Enabled VBS successfully",() => 
+        public static bool EnableVBS() =>amecs.RunBasicAction("Enabling Visual Basic Script","Enabled VBS successfully",() => 
         { 
             new Reg.Value()
                 {
@@ -298,7 +299,7 @@ namespace amecs.Extra
             Thread.Sleep(1600); 
          });
 
-        private static bool DisableVBS() =>amecs.RunBasicAction("Disabling Visual Basic Script","Disabled VBS successfully",() => 
+        public static bool DisableVBS() =>amecs.RunBasicAction("Disabling Visual Basic Script","Disabled VBS successfully",() => 
         { 
             new Reg.Value()
                 {
@@ -310,7 +311,7 @@ namespace amecs.Extra
             Thread.Sleep(1600); 
          });
 
-        private static bool EnableNCSI() =>amecs.RunBasicAction("Enabling NCSI Active Probing","Enabled NCSI Active Probing successfully",() => 
+        public static bool EnableNCSI() =>amecs.RunBasicAction("Enabling NCSI Active Probing","Enabled NCSI Active Probing successfully",() => 
         { 
             new Reg.Value()
                 {
@@ -321,7 +322,7 @@ namespace amecs.Extra
             Thread.Sleep(1600); 
          }, false, true);
 
-        private static bool DisableNCSI() =>amecs.RunBasicAction("Disabling NCSI Active Probing","Disabled NCSI Active Probing successfully",() => 
+        public static bool DisableNCSI() =>amecs.RunBasicAction("Disabling NCSI Active Probing","Disabled NCSI Active Probing successfully",() => 
         { 
             new Reg.Value()
                 {

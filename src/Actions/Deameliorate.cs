@@ -31,6 +31,7 @@ Continue? (Y/N): "
             
             var mainMenu = new Ameliorated.ConsoleUtils.Menu()
             {
+                EscapeValue = new Func<bool>(() => true),
                 Choices =
                 {
                     new Menu.MenuItem("Uninstall AME using a Windows USB", new Func<bool>(DeameliorateUSB)),
@@ -52,10 +53,14 @@ Continue? (Y/N): "
             
             var mainMenu = new Ameliorated.ConsoleUtils.Menu()
             {
+                EscapeValue = new Func<bool>(() => true),
                 Choices =
                 {
                     new Menu.MenuItem("Uninstall AME using a Windows USB", new Func<bool>(DeameliorateUSB)),
                     new Menu.MenuItem("Uninstall AME using a Windows ISO", new Func<bool>(DeameliorateISO)),
+                    Menu.MenuItem.Blank,
+                    new Menu.MenuItem("Return to Menu", new Func<bool>(() => true)),
+                    new Menu.MenuItem("Exit", new Func<bool>(Globals.Exit)),
                 },
                 SelectionForeground = ConsoleColor.Green
             };
