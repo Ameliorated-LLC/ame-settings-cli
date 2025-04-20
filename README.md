@@ -1,5 +1,5 @@
 <h1 align="center">Privacy+ Settings</h1>
-<h3 align="center">Privacy+ User & System Management Tool</h3>
+<h3 align="center">User & System Management Tool for Privacy+</h3>
 
 <p align="center">
     <img src="screenshot.png?raw=true" width="450" alt="App Fetch Screenshot">
