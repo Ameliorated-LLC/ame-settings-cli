@@ -1,12 +1,16 @@
-# Central AME Script (amecs)
+<h1 align="center">Privacy+ Settings</h1>
+<h3 align="center">Privacy+ User & System Management Tool</h3>
 
-Script for automating a large assortment of AME related actions.
+<p align="center">
+    <img src="screenshot.png?raw=true" width="450" alt="App Fetch Screenshot">
+</p>
+<h1></h1>
 
-![Central AME Script Screenshot](screenshot.png)
+Tool for automating a large assortment actions on a Privacy+ system.
 
 ## Usage
 
-You can download the script by going to the [latest release](https://git.ameliorated.info/Styris/amecs/releases/latest) and selecting `amecs.exe` from the **Downloads** section. Once downloaded, simply run `amecs.exe`.
+You can download the tool by going to the [latest release](https://github.com/Ameliorated-LLC/ame-settings-legacy/releases/latest) and selecting `privacy+_settings.exe` from the **Downloads** section. Once downloaded, simply run `privacy+_settings.exe`.
 
 ## Summary
 
@@ -135,56 +139,6 @@ The following command can also be used for this purpose:
 Or the following for disabling desktop notifications:
 
     reg add "HKU\<User's SID>\SOFTWARE\Microsoft\Windows\CurrentVersion\PushNotifications" /v ToastEnabled /t REG_DWORD /d 0 /f
-
-#### Windows Script Host (Legacy)
-
-This function allows for enabling or disabling Windows Script Host (WSH). WSH is necessary for some programs.
-
-The following command can also be used for this purpose:
-
-    reg add "HKU\<User's SID>\SOFTWARE\Microsoft\Windows Script Host\Settings" /v Enabled /t REG_DWORD /d 1 /f
-    reg add "HKLM\SOFTWARE\Microsoft\Windows Script Host\Settings" /v Enabled /t REG_DWORD /d 1 /f
-
-Or the following for disabling WSH:
-
-    reg add "HKU\<User's SID>\SOFTWARE\Microsoft\Windows Script Host\Settings" /v Enabled /t REG_DWORD /d 0 /f
-    reg add "HKLM\SOFTWARE\Microsoft\Windows Script Host\Settings" /v Enabled /t REG_DWORD /d 0 /f
-
-#### Visual Basic Script (Legacy)
-
-This function allows for enabling or disabling Visual Basic Script (VBS). VBS is necessary for some programs.
-
-The following command can also be used for this purpose:
-
-    assoc .vbs=VBSFile
-
-Or the following for disabling VBS:
-
-    assoc .vbs=
-
-#### NCSI Active Probing (Legacy)
-
-This function allows for enabling or disabling NCSI Active Probing. Some applications require this to be enabled.
-
-The following command can also be used for this purpose:
-
-    reg add "HKLM\SYSTEM\CurrentControlSet\Services\NlaSvc\Parameters\Internet" /v EnableActiveProbing /t REG_DWORD /d 1 /f
-
-Or the following for disabling NCSI Active Probing:
-
-    reg add "HKLM\SYSTEM\CurrentControlSet\Services\NlaSvc\Parameters\Internet" /v EnableActiveProbing /t REG_DWORD /d 0 /f
-
-#### NVIDIA Control Panel
-
-This function allows for installing or uninstalling NVIDIA Control Panel. This is useful since NVIDIA Control Panel no longer properly installs during a driver installation* due to it using an APPX deployment (Not supported in AME).
-
-Firstly, it fetches the store link from this git repository (`links.txt`), and fetches the download link from [store.rg-adguard.net](https://store.rg-adguard.net/). Afterwards, it downloads NVIDIA Control Panel from said link\*. Once NVIDIA Control Panel is downloaded, the script extracts and places it in `<System Drive>\Program Files\NVIDIA Control Panel`, and subsequently creates a start menu shortcut for it.
-
-For removal, it simply removes the `<System Drive>\Program Files\NVIDIA Control Panel` directory, as well as the start menu shortcut.
-
-Note: Even though NVIDIA Control Panel installation fails during a driver installation, it still creates the necessary NVIDIA Control Panel files in `<System Drive>\Program Files\WindowsApps`. If this is the case, the script will attempt to use those files instead of downloading them.
-
-\*Standard drivers do not have this issue, however, those have been discontinued by NVIDIA.
 
 ## Known Issues
 
